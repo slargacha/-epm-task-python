@@ -1,0 +1,27 @@
+# Railway.app Configuration
+# This file configures deployment to Railway.app free tier
+
+# Use Python buildpack
+build:
+  builder: dockerfile
+
+# Environment variables
+env:
+  PYTHON_VERSION: 3.10
+
+# Port configuration
+services:
+  - name: web
+    port: 8000
+    startCommand: gunicorn -w 2 -b 0.0.0.0:8000 src.app:app
+
+# Volume mounting (optional)
+# volumes:
+#   - name: coverage-report
+#     mountPath: /app/htmlcov
+
+# Health check
+# healthCheck:
+#   path: /
+#   interval: 30
+#   timeout: 10

@@ -1,0 +1,17 @@
+# EPAM Python Task - Requirements
+
+# Runtime dependencies
+Flask>=2.3
+gunicorn>=21.0
+
+# Testing frameworks
+pytest>=7.0
+pytest-cov>=3.0
+coverage>=6.0
+
+# Code quality tools (for local development)
+flake8>=4.0
+pylint>=2.12
+
+# Type checking
+mypy>=0.930
