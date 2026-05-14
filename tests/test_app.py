@@ -1,3 +1,6 @@
+import os
+os.environ["SECRET_KEY"] = "testing-secret-key-only"
+
 import pytest
 
 from src.app import app

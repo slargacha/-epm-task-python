@@ -1,6 +1,7 @@
 import os
 
 from flask import Flask, jsonify, render_template_string, request
+from flask_wtf.csrf import CSRFProtect
 
 from src.dictionary import Dictionary
 from src.nth_letter import nth_letter
@@ -8,6 +9,8 @@ from src.shop import get_total
 
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+csrf = CSRFProtect(app)
 
 # Preload sample dictionary entries for the demo page.
 dictionary = Dictionary()
@@ -206,7 +209,7 @@ home_template = """
 """
 
 
-@app.route("/")
+@app.route("/", methods=["GET"])
 def home():
     return render_template_string(home_template)
 
@@ -260,4 +263,4 @@ def nth_letter_route():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="127.0.0.1", port=port)

@@ -2,6 +2,7 @@
 
 # Runtime dependencies
 Flask>=2.3
+Flask-WTF>=1.1.0
 gunicorn>=21.0
 
 # Testing frameworks
