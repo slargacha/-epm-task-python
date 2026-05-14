@@ -9,7 +9,10 @@ from src.shop import get_total
 
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+try:
+    app.config.from_prefixed_env()
+except AttributeError:
+    pass
 csrf = CSRFProtect(app)
 
 # Preload sample dictionary entries for the demo page.
@@ -18,6 +21,17 @@ dictionary.newentry("apple", "A fruit that grows on trees")
 dictionary.newentry("banana", "A long yellow fruit")
 dictionary.newentry("python", "A programming language")
 dictionary.newentry("flask", "A lightweight Python web framework")
+
+price_catalog = {
+    "socks": 5,
+    "shoes": 60,
+    "sweater": 30,
+    "hat": 20,
+    "shirt": 25,
+    "jeans": 40,
+    "jacket": 80,
+    "cap": 10,
+}
 
 home_template = """
 <!doctype html>
@@ -121,7 +135,6 @@ home_template = """
     <main class="page">
       <header>
         <h1>EPAM Python Task</h1>
-        <p class="lead">Minimalista, profesional y desplegable. Prueba los tres módulos desde la interfaz.</p>
       </header>
 
       <div class="grid">
@@ -131,12 +144,26 @@ home_template = """
             <label for="dictionary-word">Palabra</label>
             <input id="dictionary-word" type="text" placeholder="apple" value="apple" />
           </div>
+          <div class="field">
+            <label for="dictionary-definition">Definición</label>
+            <input id="dictionary-definition" type="text" placeholder="Una fruta que crece en los árboles" />
+          </div>
+          <button id="dictionary-add" type="button">Agregar al diccionario</button>
           <button id="dictionary-submit" type="button">Buscar definición</button>
           <pre id="dictionary-result">Introduce una palabra y presiona Buscar definición.</pre>
         </section>
 
         <section class="card" id="shop-card">
           <h2>Calculadora del carrito</h2>
+          <div class="field">
+            <label for="shop-new-item">Nuevo artículo</label>
+            <input id="shop-new-item" type="text" placeholder="watch" />
+          </div>
+          <div class="field">
+            <label for="shop-new-price">Precio</label>
+            <input id="shop-new-price" type="text" placeholder="55" />
+          </div>
+          <button id="shop-add" type="button">Agregar artículo</button>
           <div class="field">
             <label for="shop-items">Artículos</label>
             <input id="shop-items" type="text" placeholder="socks,shoes" value="socks,shoes" />
@@ -146,6 +173,7 @@ home_template = """
             <input id="shop-tax" type="text" placeholder="0.09" value="0.09" />
           </div>
           <button id="shop-submit" type="button">Calcular total</button>
+          <pre id="shop-catalog">Cargando catálogo...</pre>
           <pre id="shop-result">Introduce los artículos y el valor del IVA.</pre>
         </section>
 
@@ -160,7 +188,6 @@ home_template = """
         </section>
       </div>
 
-      <p class="notice">La aplicación está preparada para despliegue en Docker y CI/CD con pruebas unitarias e integración.</p>
     </main>
 
     <script>
@@ -173,16 +200,67 @@ home_template = """
         return response.json();
       }
 
+      function formatResult(result) {
+        if (typeof result === 'string') {
+          return result;
+        }
+
+        if (result.definition !== undefined) {
+          return `${result.word}: ${result.definition}`;
+        }
+
+        if (result.message !== undefined) {
+          const details = result.word && result.definition ? `\n${result.word}: ${result.definition}` : '';
+          return `${result.message}${details}`;
+        }
+
+        if (result.total !== undefined) {
+          const items = Array.isArray(result.items) ? result.items.join(', ') : result.items;
+          return `Artículos: ${items}\nIVA: ${result.tax}\nTotal: ${result.total}`;
+        }
+
+        if (result.result !== undefined) {
+          const words = Array.isArray(result.words) ? result.words.join(', ') : result.words;
+          return `Resultado: ${result.result}${words ? `\nPalabras: ${words}` : ''}`;
+        }
+
+        return JSON.stringify(result, null, 2);
+      }
+
       async function updateResult(elementId, callback) {
         const element = document.getElementById(elementId);
         element.textContent = 'Cargando...';
         try {
           const result = await callback();
-          element.textContent = JSON.stringify(result, null, 2);
+          element.textContent = formatResult(result);
         } catch (error) {
           element.textContent = String(error);
         }
       }
+
+      async function refreshShopCatalog() {
+        const element = document.getElementById('shop-catalog');
+        element.textContent = 'Cargando catálogo...';
+        try {
+          const result = await getJson('/shop/catalog');
+          const lines = Object.entries(result.catalog)
+            .map(([item, price]) => `${item}: ${price}`)
+            .join('\n');
+          element.textContent = `Catálogo disponible:\n${lines}`;
+        } catch (error) {
+          element.textContent = String(error);
+        }
+      }
+
+      document.getElementById('dictionary-add').addEventListener('click', () => {
+        const word = document.getElementById('dictionary-word').value.trim();
+        const definition = document.getElementById('dictionary-definition').value.trim();
+        if (!word || !definition) {
+          document.getElementById('dictionary-result').textContent = 'Ingresa palabra y definición válidas.';
+          return;
+        }
+        updateResult('dictionary-result', () => getJson(`/dictionary/add?word=${encodeURIComponent(word)}&definition=${encodeURIComponent(definition)}`));
+      });
 
       document.getElementById('dictionary-submit').addEventListener('click', () => {
         const word = document.getElementById('dictionary-word').value.trim();
@@ -191,6 +269,17 @@ home_template = """
           return;
         }
         updateResult('dictionary-result', () => getJson(`/dictionary/${encodeURIComponent(word)}`));
+      });
+
+      document.getElementById('shop-add').addEventListener('click', async () => {
+        const item = document.getElementById('shop-new-item').value.trim();
+        const price = document.getElementById('shop-new-price').value.trim();
+        if (!item || !price) {
+          document.getElementById('shop-result').textContent = 'Ingresa nombre y precio del artículo.';
+          return;
+        }
+        updateResult('shop-result', () => getJson(`/shop/add?item=${encodeURIComponent(item)}&price=${encodeURIComponent(price)}`));
+        await refreshShopCatalog();
       });
 
       document.getElementById('shop-submit').addEventListener('click', () => {
@@ -203,6 +292,8 @@ home_template = """
         const words = document.getElementById('nth-words').value.trim();
         updateResult('nth-result', () => getJson(`/nth-letter?words=${encodeURIComponent(words)}`));
       });
+
+      refreshShopCatalog();
     </script>
   </body>
 </html>
@@ -222,6 +313,43 @@ def lookup(word):
     return jsonify({"word": word, "definition": result})
 
 
+@app.route("/dictionary/add", methods=["GET"])
+def dictionary_add():
+    word = request.args.get("word", "").strip()
+    definition = request.args.get("definition", "").strip()
+
+    if not word or not definition:
+        return jsonify({"error": "Both word and definition are required."}), 400
+
+    dictionary.newentry(word, definition)
+    return jsonify({"word": word, "definition": definition, "message": "Palabra agregada al diccionario."})
+
+
+@app.route("/shop/catalog", methods=["GET"])
+def shop_catalog():
+    return jsonify({"catalog": price_catalog})
+
+
+@app.route("/shop/add", methods=["GET"])
+def shop_add():
+    item = request.args.get("item", "").strip()
+    price = request.args.get("price", "").strip()
+
+    if not item or not price:
+        return jsonify({"error": "Item name and price are required."}), 400
+
+    try:
+        price_value = float(price)
+    except ValueError:
+        return jsonify({"error": "Price must be a number."}), 400
+
+    if price_value < 0:
+        return jsonify({"error": "Price must be greater than or equal to zero."}), 400
+
+    price_catalog[item] = price_value
+    return jsonify({"item": item, "price": price_value, "catalog": price_catalog, "message": "Artículo agregado al catálogo."})
+
+
 @app.route("/shop/total", methods=["GET"])
 def shop_total():
     items = request.args.get("items", "")
@@ -236,13 +364,6 @@ def shop_total():
     if not item_list:
         return jsonify({"error": "Use ?items=item1,item2&tax=0.09"}), 400
 
-    price_catalog = {
-        "socks": 5,
-        "shoes": 60,
-        "sweater": 30,
-        "hat": 20,
-        "shirt": 25,
-    }
     total = get_total(price_catalog, item_list, tax_value)
     return jsonify({"items": item_list, "tax": tax_value, "total": total})
 

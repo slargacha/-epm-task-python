@@ -251,14 +251,13 @@ See [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml) for detailed pipe
 
 The project is automatically deployed to a **free cloud platform** upon successful CI/CD pipeline completion.
 
-### Deployment Platform: Railway.app (Free Tier)
+### Deployment Platform: Render.com (Docker Deployment)
 
-**Why Railway?**
-- **Free tier**: $5/month credit (often covers small apps)
-- **Easy GitHub integration**: Auto-deploy on push
-- **Python support**: Native support for Python applications
-- **Environment variables**: Simple configuration management
-- **No credit card required** for initial free tier
+**Why Render with Docker?**
+- **Consistency**: Uses the exact same image tested in CI.
+- **Security**: Deploys the pre-built image from GHCR.
+- **Professional Workflow**: Separation between Build and Deploy stages.
+- **Free Tier**: Support for web services with custom images.
 
 **Alternatives:**
 - **Render.com** - Free tier with sleep mode
@@ -266,7 +265,7 @@ The project is automatically deployed to a **free cloud platform** upon successf
 - **Heroku alternatives** - Due to Heroku free tier discontinuation
 
 ### Deployment URL
-*To be updated after first successful deployment*
+https://epam-python-task.onrender.com
 
 ---
 
