@@ -47,6 +47,10 @@ home_template = """
         background: #f8fafc;
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
           "Segoe UI", sans-serif;
+        box-sizing: border-box;
+      }
+      *, *::before, *::after {
+        box-sizing: inherit;
       }
       body {
         margin: 0;
@@ -100,12 +104,15 @@ home_template = """
       button,
       textarea {
         width: 100%;
+        max-width: 100%;
         border: 1px solid #cbd5e1;
         border-radius: 12px;
         padding: 12px 14px;
         font-size: 0.95rem;
       }
       button {
+        width: 100%;
+        margin-bottom: 12px;
         background: #2563eb;
         color: white;
         border: none;
@@ -142,13 +149,17 @@ home_template = """
           <h2>Diccionario</h2>
           <div class="field">
             <label for="dictionary-word">Palabra</label>
-            <input id="dictionary-word" type="text" placeholder="apple" value="apple" />
+            <input id="dictionary-word" type="text" placeholder="apple" value="" />
           </div>
           <div class="field">
             <label for="dictionary-definition">Definición</label>
             <input id="dictionary-definition" type="text" placeholder="Una fruta que crece en los árboles" />
           </div>
           <button id="dictionary-add" type="button">Agregar al diccionario</button>
+          <div class="field">
+            <label for="dictionary-search-word">Buscar palabra</label>
+            <input id="dictionary-search-word" type="text" placeholder="apple" value="" />
+          </div>
           <button id="dictionary-submit" type="button">Buscar definición</button>
           <pre id="dictionary-result">Introduce una palabra y presiona Buscar definición.</pre>
         </section>
@@ -169,12 +180,11 @@ home_template = """
             <input id="shop-items" type="text" placeholder="socks,shoes" value="socks,shoes" />
           </div>
           <div class="field">
-            <label for="shop-tax">IVA / Tax</label>
+            <label for="shop-tax">Tax</label>
             <input id="shop-tax" type="text" placeholder="0.09" value="0.09" />
           </div>
           <button id="shop-submit" type="button">Calcular total</button>
-          <pre id="shop-catalog">Cargando catálogo...</pre>
-          <pre id="shop-result">Introduce los artículos y el valor del IVA.</pre>
+          <pre id="shop-result">Introduce los artículos y el valor del tax.</pre>
         </section>
 
         <section class="card" id="nth-card">
@@ -216,7 +226,7 @@ home_template = """
 
         if (result.total !== undefined) {
           const items = Array.isArray(result.items) ? result.items.join(', ') : result.items;
-          return `Artículos: ${items}\nIVA: ${result.tax}\nTotal: ${result.total}`;
+          return `Artículos: ${items}\nTax: ${result.tax}\nTotal: ${result.total}`;
         }
 
         if (result.result !== undefined) {
@@ -238,40 +248,38 @@ home_template = """
         }
       }
 
-      async function refreshShopCatalog() {
-        const element = document.getElementById('shop-catalog');
-        element.textContent = 'Cargando catálogo...';
-        try {
-          const result = await getJson('/shop/catalog');
-          const lines = Object.entries(result.catalog)
-            .map(([item, price]) => `${item}: ${price}`)
-            .join('\n');
-          element.textContent = `Catálogo disponible:\n${lines}`;
-        } catch (error) {
-          element.textContent = String(error);
-        }
-      }
-
-      document.getElementById('dictionary-add').addEventListener('click', () => {
+      document.getElementById('dictionary-add').addEventListener('click', async () => {
         const word = document.getElementById('dictionary-word').value.trim();
         const definition = document.getElementById('dictionary-definition').value.trim();
+        const addButton = document.getElementById('dictionary-add');
+        const searchButton = document.getElementById('dictionary-submit');
+
         if (!word || !definition) {
           document.getElementById('dictionary-result').textContent = 'Ingresa palabra y definición válidas.';
           return;
         }
-        updateResult('dictionary-result', () => getJson(`/dictionary/add?word=${encodeURIComponent(word)}&definition=${encodeURIComponent(definition)}`));
+
+        addButton.disabled = true;
+        searchButton.disabled = true;
+        try {
+          await updateResult('dictionary-result', () => getJson(`/dictionary/add?word=${encodeURIComponent(word)}&definition=${encodeURIComponent(definition)}`));
+          document.getElementById('dictionary-search-word').value = word;
+        } finally {
+          addButton.disabled = false;
+          searchButton.disabled = false;
+        }
       });
 
       document.getElementById('dictionary-submit').addEventListener('click', () => {
-        const word = document.getElementById('dictionary-word').value.trim();
+        const word = document.getElementById('dictionary-search-word').value.trim();
         if (!word) {
-          document.getElementById('dictionary-result').textContent = 'Ingresa una palabra válida.';
+          document.getElementById('dictionary-result').textContent = 'Ingresa una palabra válida para buscar.';
           return;
         }
         updateResult('dictionary-result', () => getJson(`/dictionary/${encodeURIComponent(word)}`));
       });
 
-      document.getElementById('shop-add').addEventListener('click', async () => {
+      document.getElementById('shop-add').addEventListener('click', () => {
         const item = document.getElementById('shop-new-item').value.trim();
         const price = document.getElementById('shop-new-price').value.trim();
         if (!item || !price) {
@@ -279,7 +287,6 @@ home_template = """
           return;
         }
         updateResult('shop-result', () => getJson(`/shop/add?item=${encodeURIComponent(item)}&price=${encodeURIComponent(price)}`));
-        await refreshShopCatalog();
       });
 
       document.getElementById('shop-submit').addEventListener('click', () => {
@@ -292,8 +299,6 @@ home_template = """
         const words = document.getElementById('nth-words').value.trim();
         updateResult('nth-result', () => getJson(`/nth-letter?words=${encodeURIComponent(words)}`));
       });
-
-      refreshShopCatalog();
     </script>
   </body>
 </html>
